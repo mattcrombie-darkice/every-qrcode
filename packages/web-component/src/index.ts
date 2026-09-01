@@ -28,7 +28,7 @@ const TEMPLATE = `
 `;
 
 type EveryQRCodeView = "model" | "qr";
-export type EveryQRCodeModel = "terrain" | "tree";
+export type EveryQRCodeModel = "systems-cube" | "terrain" | "tree";
 
 type SeedRenderer = {
   dispose: () => void;
@@ -51,7 +51,7 @@ function readScope(element: HTMLElement): IdentityScope {
 
 function readModel(element: HTMLElement): EveryQRCodeModel {
   const model = element.getAttribute("model");
-  if (model === "terrain") return model;
+  if (model === "systems-cube" || model === "terrain") return model;
   return "tree";
 }
 

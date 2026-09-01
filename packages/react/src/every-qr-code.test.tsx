@@ -37,16 +37,24 @@ describe("EveryQRCode", () => {
     const terrain = renderToStaticMarkup(
       <EveryQRCode model="terrain" url="https://example.com/terrain" />,
     );
+    const systemsCube = renderToStaticMarkup(
+      <EveryQRCode model="systems-cube" url="https://crew.darkice.au/matt-crombie" />,
+    );
 
     expect(terrain).toContain('data-every-qrcode-model="terrain"');
+    expect(systemsCube).toContain('data-every-qrcode-model="systems-cube"');
   });
 
   it("binds each rendering backend to a model-specific canvas", () => {
     const tree = renderToStaticMarkup(<EveryQRCode model="tree" url="https://example.com" />);
     const terrain = renderToStaticMarkup(<EveryQRCode model="terrain" url="https://example.com" />);
+    const systemsCube = renderToStaticMarkup(
+      <EveryQRCode model="systems-cube" url="https://crew.darkice.au/matt-crombie" />,
+    );
 
     expect(tree).toContain('data-every-qrcode-canvas="tree"');
     expect(terrain).toContain('data-every-qrcode-canvas="terrain"');
+    expect(systemsCube).toContain('data-every-qrcode-canvas="systems-cube"');
   });
 
   it("exposes the initial interactive zoom without changing URL identity", () => {

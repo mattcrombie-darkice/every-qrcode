@@ -1443,7 +1443,7 @@ function assembleScene(
 
 export function createSeedGpuScene(model: SeedModel, form: SeedForm = "tree"): SeedGpuScene {
   const appearance = createTreeAppearance(model);
-  if (form === "terrain") {
+  if (form !== "tree") {
     return createTerrainScene(model, appearance);
   }
   const tree = createTree(model);

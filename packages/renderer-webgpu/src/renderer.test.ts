@@ -139,6 +139,27 @@ it("keeps the canonical QR field unchanged for the terrain upper form", async ()
   expect(field.blocks).toHaveLength(model.qrSize * model.qrSize);
 });
 
+it("keeps the canonical QR field unchanged beneath the systems cube", async () => {
+  const identity = await createEveryQRCodeIdentity("https://crew.darkice.au/matt-crombie");
+  const model = await seedModel.createSeedModel(identity);
+  const tree = seedModel.createSeedBlockField(model, "tree");
+  const field = seedModel.createSeedBlockField(model, "systems-cube");
+  const baseBlocks = field.blocks.filter((block) => block.layer === 0);
+  const signature = (block: (typeof baseBlocks)[number]): readonly number[] => [
+    block.column,
+    block.row,
+    block.baseY,
+    block.type,
+  ];
+
+  expect(baseBlocks.map(signature)).toEqual(
+    tree.blocks.filter((block) => block.layer === 0).map(signature),
+  );
+  expect(field.blocks).toHaveLength(model.qrSize * model.qrSize);
+  expect(Math.max(...field.heights)).toBeGreaterThan(0.9);
+  expect(Math.min(...field.heights)).toBeLessThanOrEqual(0.03);
+});
+
 it("uses a normalized QR-derived terrain height field", async () => {
   const identity = await createEveryQRCodeIdentity("https://example.com/upper-form-only");
   const model = await seedModel.createSeedModel(identity);
@@ -560,6 +581,7 @@ it("loads only the shader bundle for the selected renderer model", async () => {
 
   const tree = await loadShaderSources("tree");
   const terrain = await loadShaderSources("terrain");
+  const systemsCube = await loadShaderSources("systems-cube");
 
   expect(tree).toMatchObject({ form: "tree" });
   expect(tree).toHaveProperty("blocks");
@@ -567,6 +589,9 @@ it("loads only the shader bundle for the selected renderer model", async () => {
   expect(terrain).toMatchObject({ form: "terrain" });
   expect(terrain).toHaveProperty("terrain");
   expect(terrain).not.toHaveProperty("blocks");
+  expect(systemsCube).toMatchObject({ form: "systems-cube" });
+  expect(systemsCube).toHaveProperty("terrain");
+  expect(systemsCube).not.toHaveProperty("blocks");
 });
 
 it("keeps gallery archetypes visibly different instead of flattening every crown", async () => {

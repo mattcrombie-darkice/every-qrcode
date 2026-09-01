@@ -1,82 +1,222 @@
-import { createEveryQRCodeIdentity, type EveryQRCodeIdentity } from "@every-qrcode/core";
-import { EveryQRCode, type EveryQRCodeModel } from "@every-qrcode/react";
-import { useDeferredValue, useEffect, useState } from "react";
+import { EveryQRCode, type EveryQRCodeView } from "@every-qrcode/react";
+import { useState } from "react";
 
-import { CoreInspector } from "@/core-inspector";
+const PROFILE_URL = "https://crew.darkice.au/matt-crombie";
 
-const DEFAULT_LINK = "https://example.com";
-const MODELS: readonly EveryQRCodeModel[] = ["tree", "terrain"];
-const MODEL_LABELS: Readonly<Record<EveryQRCodeModel, string>> = {
-  terrain: "Terrain",
-  tree: "Tree",
+type Face = {
+  readonly eyebrow: string;
+  readonly id: string;
+  readonly label: string;
+  readonly proof: string;
+  readonly statement: string;
 };
 
-export function App(): React.JSX.Element {
-  const [input, setInput] = useState(DEFAULT_LINK);
-  const [model, setModel] = useState<EveryQRCodeModel>("tree");
-  const [identity, setIdentity] = useState<EveryQRCodeIdentity | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const deferredInput = useDeferredValue(input);
-  const resolvedInput = deferredInput.trim() || DEFAULT_LINK;
+const FACES: readonly Face[] = [
+  {
+    eyebrow: "01 / APPLIED AI",
+    id: "ai",
+    label: "Applied AI",
+    proof: "LLM workflows, evaluation, human escalation and governed delivery.",
+    statement: "AI that earns a place inside real operations.",
+  },
+  {
+    eyebrow: "02 / ARCHITECTURE",
+    id: "architecture",
+    label: "Architecture",
+    proof: "Connected mobile, web, cloud and enterprise systems designed end to end.",
+    statement: "The whole system, not just the impressive fragment.",
+  },
+  {
+    eyebrow: "03 / AUTOMATION",
+    id: "automation",
+    label: "Automation",
+    proof: "Operational workflows spanning government, finance, mining and manufacturing.",
+    statement: "Find the friction. Build the capability. Prove the outcome.",
+  },
+  {
+    eyebrow: "04 / DELIVERY",
+    id: "delivery",
+    label: "Delivery",
+    proof: "20+ years shipping software and 15+ years of founder-level ownership.",
+    statement: "Senior enough to frame it. Hands-on enough to ship it.",
+  },
+  {
+    eyebrow: "05 / SELECTED WORK",
+    id: "work",
+    label: "Selected work",
+    proof:
+      "ATO, Telstra Health, V/Line, TechnologyOne, McMillan Shakespeare and industrial field systems.",
+    statement: "Complex environments. Practical systems. Real adoption.",
+  },
+  {
+    eyebrow: "06 / CONNECT",
+    id: "connect",
+    label: "Connect",
+    proof: "Brisbane based. Available for architecture, AI automation and delivery leadership.",
+    statement: "Bring me the problem that crosses the org chart.",
+  },
+];
 
-  useEffect(() => {
-    let cancelled = false;
-    void createEveryQRCodeIdentity(resolvedInput)
-      .then((nextIdentity) => {
-        if (cancelled) return;
-        setIdentity(nextIdentity);
-        setError(null);
-      })
-      .catch((reason: unknown) => {
-        if (cancelled) return;
-        setError(
-          reason instanceof Error ? reason.message : "Every QR Code could not read that link.",
-        );
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [resolvedInput]);
+const DEFAULT_FACE = FACES[0]!;
+
+export function App(): React.JSX.Element {
+  const [activeFace, setActiveFace] = useState(DEFAULT_FACE);
+  const [view, setView] = useState<EveryQRCodeView>("model");
+  const [rendererState, setRendererState] = useState("Signal field live");
 
   return (
-    <main className="demo-shell">
-      <section className="scene-region">
-        <nav aria-label="Every QR Code model" className="model-picker">
-          {MODELS.map((option) => (
+    <main className="experience-shell">
+      <div className="signal-grid" aria-hidden="true" />
+      <header className="site-header">
+        <a className="wordmark" href="https://darkice.au" aria-label="Dark Ice home">
+          <span className="wordmark-mark" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span>
+            dark<strong>ice</strong>
+          </span>
+        </a>
+        <div className="header-status">
+          <span className="pulse" aria-hidden="true" />
+          Brisbane · available
+        </div>
+      </header>
+
+      <section className="hero" aria-labelledby="experience-title">
+        <div className="hero-copy">
+          <p className="kicker">MATT CROMBIE / SYSTEMS CUBE 01</p>
+          <h1 id="experience-title">
+            AI systems.
+            <br />
+            <span>Architecture.</span>
+            <br />
+            Delivery that ships.
+          </h1>
+          <p className="hero-intro">
+            I work where strategy, software and real operations meet, turning ambiguous problems
+            into governed systems people can actually use.
+          </p>
+          <div className="hero-actions">
+            <a
+              className="button button-primary"
+              href="mailto:matt@darkice.au?subject=Systems%20conversation"
+            >
+              Start a conversation
+            </a>
+            <a className="button button-ghost" href="/Matt-Crombie.vcf" download>
+              Save contact
+            </a>
+          </div>
+          <div className="proof-strip" aria-label="Experience summary">
+            <span>
+              <strong>20+</strong> years shipping
+            </span>
+            <span>
+              <strong>15+</strong> years founder-led
+            </span>
+            <span>
+              <strong>10</strong> sectors
+            </span>
+          </div>
+        </div>
+
+        <div className="cube-stage" data-view={view}>
+          <div className="stage-chrome">
+            <span>{view === "model" ? "LIVE SYSTEM" : "SCAN SIGNAL"}</span>
+            <span>{rendererState}</span>
+          </div>
+          <div className="cube-frame">
+            <EveryQRCode
+              className="systems-cube"
+              identityScope="url"
+              initialZoom={0.9}
+              model="systems-cube"
+              onError={() => {
+                setView("qr");
+                setRendererState("Canonical QR fallback");
+              }}
+              onViewChange={(nextView) => {
+                setView(nextView);
+                setRendererState(
+                  nextView === "qr" ? "Resolving canonical signal" : "Signal field live",
+                );
+              }}
+              url={PROFILE_URL}
+            />
+            <span className="corner corner-tl" aria-hidden="true" />
+            <span className="corner corner-tr" aria-hidden="true" />
+            <span className="corner corner-bl" aria-hidden="true" />
+            <span className="corner corner-br" aria-hidden="true" />
+          </div>
+          <p className="stage-instruction">
+            {view === "model"
+              ? "Tap the signal field to resolve the scannable contact code. Use + / − to inspect."
+              : "Point a camera at the code, or tap again to rebuild the Systems Cube."}
+          </p>
+        </div>
+      </section>
+
+      <section className="capability-console" aria-labelledby="console-title">
+        <div className="console-heading">
+          <p className="kicker">AN INTERACTIVE PROFESSIONAL SIGNAL</p>
+          <h2 id="console-title">One system. Six faces.</h2>
+          <p>The visual changes with the URL, while the professional signal stays precise.</p>
+        </div>
+        <div className="face-tabs" role="tablist" aria-label="Systems Cube faces">
+          {FACES.map((face) => (
             <button
-              aria-pressed={option === model}
-              key={option}
-              onClick={() => setModel(option)}
+              aria-controls="face-panel"
+              aria-selected={activeFace.id === face.id}
+              className="face-tab"
+              id={`tab-${face.id}`}
+              key={face.id}
+              onClick={() => setActiveFace(face)}
+              role="tab"
               type="button"
             >
-              {MODEL_LABELS[option]}
+              <span>{face.eyebrow.slice(0, 2)}</span>
+              {face.label}
             </button>
           ))}
-        </nav>
-        <EveryQRCode className="scene-button" model={model} url={resolvedInput} />
+        </div>
+        <article
+          aria-labelledby={`tab-${activeFace.id}`}
+          className="face-panel"
+          id="face-panel"
+          role="tabpanel"
+        >
+          <p className="face-eyebrow">{activeFace.eyebrow}</p>
+          <h3>{activeFace.statement}</h3>
+          <p>{activeFace.proof}</p>
+          {activeFace.id === "connect" ? (
+            <div className="connect-links">
+              <a href="tel:+61419500715">+61 419 500 715</a>
+              <a href="mailto:matt@darkice.au">matt@darkice.au</a>
+              <a href="https://www.linkedin.com/in/matt-crombie/">LinkedIn</a>
+            </div>
+          ) : null}
+        </article>
       </section>
-      <div className="input-region">
-        <label className="sr-only" htmlFor="qr-content">
-          URL to render
-        </label>
-        <input
-          autoCapitalize="none"
-          autoComplete="off"
-          autoCorrect="off"
-          id="qr-content"
-          inputMode="url"
-          onChange={(event) => {
-            setInput(event.target.value);
-          }}
-          placeholder="https://example.com"
-          spellCheck={false}
-          value={input}
-        />
-        <p aria-live="polite" className="input-error">
-          {error}
+
+      <section className="handoff" id="ar-handoff" aria-labelledby="handoff-title">
+        <div>
+          <p className="kicker">PHYSICAL → DIGITAL</p>
+          <h2 id="handoff-title">The QR is the doorway, not the destination.</h2>
+        </div>
+        <p>
+          On paper it remains a conventional, high-reliability code. On screen it becomes a
+          deterministic 3D signature, then resolves back to the exact code when someone is ready to
+          connect.
         </p>
-        {identity ? <CoreInspector identity={identity} /> : null}
-      </div>
+      </section>
+
+      <footer>
+        <span>Matt Crombie · Founder &amp; Principal Consultant</span>
+        <span>Built as an AI-assisted systems demonstration</span>
+        <a href={PROFILE_URL}>crew.darkice.au/matt-crombie</a>
+      </footer>
     </main>
   );
 }

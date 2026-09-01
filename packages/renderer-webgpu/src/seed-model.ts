@@ -59,7 +59,7 @@ export const SEED_MATERIALS = [
 
 export type SeedMaterial = (typeof SEED_MATERIALS)[number];
 
-export type SeedForm = "terrain" | "tree";
+export type SeedForm = "systems-cube" | "terrain" | "tree";
 
 export type SeedPalette = {
   readonly accent: number;
@@ -383,6 +383,32 @@ function createTerrainHeights(model: SeedModel): Float32Array {
   return heights;
 }
 
+function createSystemsCubeHeights(model: SeedModel): Float32Array {
+  const size = model.qrSize;
+  const center = (size - 1) * 0.5;
+  const halfCore = Math.max(4, Math.floor(size * 0.205));
+  const heights = new Float32Array(size * size);
+  const active = new Set(model.modules.map((module) => module.index));
+
+  for (let row = 0; row < size; row += 1) {
+    for (let column = 0; column < size; column += 1) {
+      const index = row * size + column;
+      const dx = Math.abs(column - center);
+      const dz = Math.abs(row - center);
+      const inCore = dx <= halfCore && dz <= halfCore;
+      const isActive = active.has(index);
+      if (inCore) {
+        const edge = Math.max(dx, dz) / Math.max(1, halfCore);
+        heights[index] = 0.78 + (1 - edge) * 0.16 + (isActive ? 0.06 : 0);
+      } else {
+        const ring = Math.max(dx, dz) - halfCore;
+        heights[index] = isActive ? 0.16 + Math.max(0, 0.18 - ring * 0.018) : 0.025;
+      }
+    }
+  }
+  return heights;
+}
+
 function packSeedBlockField(
   blocks: readonly SeedBlock[],
   qrSize: number,
@@ -431,7 +457,12 @@ export function createSeedBlockField(model: SeedModel, form: SeedForm = "tree"):
       }
     }
   }
-  const terrainHeights = form === "terrain" ? createTerrainHeights(model) : undefined;
+  const terrainHeights =
+    form === "terrain"
+      ? createTerrainHeights(model)
+      : form === "systems-cube"
+        ? createSystemsCubeHeights(model)
+        : undefined;
   return packSeedBlockField(blocks, model.qrSize, terrainHeights);
 }
 

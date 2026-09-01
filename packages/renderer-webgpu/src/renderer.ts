@@ -11,6 +11,7 @@ import { createTerrainPalette, type TerrainScenePalette } from "./terrain-palett
 export type SeedRenderer = {
   dispose: () => void;
   resize: () => void;
+  setActive: (active: boolean) => void;
   setFlat: (flat: boolean) => void;
   setScene: (scene: SeedSceneConfig) => void;
   setZoom: (zoom: number) => void;
@@ -60,7 +61,7 @@ type TreePipelines = SharedPipelines & {
 };
 
 type TerrainPipelines = SharedPipelines & {
-  readonly form: "terrain";
+  readonly form: "systems-cube" | "terrain";
   readonly terrain: GPURenderPipeline;
 };
 
@@ -78,13 +79,17 @@ type TreeShaderSources = {
 };
 
 type TerrainShaderSources = {
-  readonly form: "terrain";
+  readonly form: "systems-cube" | "terrain";
   readonly terrain: string;
 };
 
 type SeedShaderSources = TerrainShaderSources | TreeShaderSources;
 
 const SEED_SHADER_LOADERS = {
+  "systems-cube": async (): Promise<TerrainShaderSources> => {
+    const { SYSTEMS_CUBE_SHADER } = await import("./systems-cube-shaders.js");
+    return { form: "systems-cube", terrain: SYSTEMS_CUBE_SHADER };
+  },
   terrain: async (): Promise<TerrainShaderSources> => {
     const { TERRAIN_SHADER } = await import("./terrain-shaders.js");
     return { form: "terrain", terrain: TERRAIN_SHADER };
@@ -196,6 +201,7 @@ function createPalette(scene: SeedSceneConfig): SeedScenePalette {
 }
 
 type RendererState = {
+  active: boolean;
   closed: boolean;
   frame: number;
   from: number;
@@ -520,7 +526,7 @@ async function createPipelines(
     createSharedPipelines(device, format, layouts),
     loadSeedShaderSources(form),
   ]);
-  return sources.form === "terrain"
+  return sources.form !== "tree"
     ? createTerrainPipelines(device, format, layouts, shared, sources)
     : createTreePipelines(device, format, layouts, shared, sources);
 }
@@ -665,7 +671,7 @@ function writeUniforms(
   const bounce = Math.exp(-6 * toggleAge) * Math.sin(12 * toggleAge) * 0.012;
   const values = new Float32Array(UNIFORM_FLOATS);
   const effectMotion = gpu.sceneEffect === 0 ? 1 : gpu.sceneEffect === 1 ? 0.15 : 0;
-  const cameraMotion = gpu.form === "terrain" ? 0 : effectMotion;
+  const cameraMotion = gpu.form !== "tree" ? 0 : effectMotion;
   values[0] = canvas.width / Math.max(1, canvas.height);
   values[1] = time;
   values[2] = gpu.blockField.blocks.length;
@@ -722,7 +728,7 @@ function encodeScenePass(encoder: GPUCommandEncoder, gpu: SeedGpuResources): voi
     },
     label: "every-qrcode-scene-pass",
   });
-  const isTerrain = gpu.pipelines.form === "terrain";
+  const isTerrain = gpu.pipelines.form !== "tree";
   pass.setPipeline(isTerrain ? gpu.pipelines.terrain : gpu.pipelines.blocks);
   pass.setBindGroup(0, gpu.bindGroups.blocks);
   if (isTerrain) {
@@ -846,9 +852,10 @@ function updateGpuScene(gpu: SeedGpuResources, scene: SeedSceneConfig): void {
 }
 
 function animate(canvas: HTMLCanvasElement, state: RendererState, now: number): void {
+  state.frame = 0;
   const gpu = state.gpu;
-  if (!gpu || state.closed) return;
-  if (gpu.form === "terrain") {
+  if (!gpu || state.closed || !state.active) return;
+  if (gpu.form !== "tree") {
     const elapsedSeconds = Math.min(0.05, Math.max(0, now - state.lastFrameTime) / 1000);
     const [progress, velocity] = stepTerrainSpring(
       state.progress,
@@ -877,12 +884,19 @@ function animate(canvas: HTMLCanvasElement, state: RendererState, now: number): 
   const toggleAge = Math.max(0, (now - state.toggleTime) / 1000);
   writeUniforms(canvas, gpu, state.progress, time, toggleAge);
   renderGpuFrame(gpu);
+  scheduleFrame(canvas, state);
+}
+
+function scheduleFrame(canvas: HTMLCanvasElement, state: RendererState): void {
+  if (state.closed || !state.active || !state.gpu || state.frame !== 0) return;
+  state.lastFrameTime = performance.now();
   state.frame = requestAnimationFrame((next) => animate(canvas, state, next));
 }
 
 function createInitialState(): RendererState {
   const now = performance.now();
   return {
+    active: true,
     closed: false,
     frame: 0,
     from: 0,
@@ -920,7 +934,16 @@ export function mountSeed(
       state.gpu = gpu;
       canvas.dataset["renderer"] = "webgpu-wgsl";
       resizeGpuCanvas(canvas, gpu);
-      state.frame = requestAnimationFrame((now) => animate(canvas, state, now));
+      scheduleFrame(canvas, state);
+      void gpu.device.lost.then((info) => {
+        if (state.closed || state.gpu !== gpu) return;
+        cancelAnimationFrame(state.frame);
+        state.frame = 0;
+        state.active = false;
+        canvas.dataset["renderer"] = "webgpu-device-lost";
+        const detail = info.message ? `: ${info.message}` : "";
+        options.onError?.(new Error(`WebGPU device lost${detail}`));
+      });
       options.onReady?.();
     })
     .catch((reason: unknown) => {
@@ -934,11 +957,22 @@ export function mountSeed(
     dispose: () => {
       state.closed = true;
       cancelAnimationFrame(state.frame);
+      state.frame = 0;
       destroyGpuResources(state.gpu);
       state.gpu = undefined;
     },
     resize: () => {
       state.resizePending = true;
+    },
+    setActive: (active) => {
+      if (state.active === active) return;
+      state.active = active;
+      if (!active) {
+        cancelAnimationFrame(state.frame);
+        state.frame = 0;
+        return;
+      }
+      scheduleFrame(canvas, state);
     },
     setFlat: (flat) => {
       const target = flat ? 1 : 0;

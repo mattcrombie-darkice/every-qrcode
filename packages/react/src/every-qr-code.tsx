@@ -17,7 +17,7 @@ import {
 import { nextEveryQRCodeView } from "./every-qr-code-view.js";
 
 export type EveryQRCodeView = "model" | "qr";
-export type EveryQRCodeModel = "terrain" | "tree";
+export type EveryQRCodeModel = "systems-cube" | "terrain" | "tree";
 export type EveryQRCodeSceneConfig = SeedSceneConfig;
 
 export type EveryQRCodeProps = {
@@ -37,6 +37,7 @@ export type EveryQRCodeProps = {
 type SeedRenderer = {
   dispose: () => void;
   resize: () => void;
+  setActive: (active: boolean) => void;
   setFlat: (flat: boolean) => void;
   setScene: (scene: EveryQRCodeSceneConfig) => void;
   setZoom: (zoom: number) => void;
@@ -152,13 +153,27 @@ function useMountedRenderer(options: {
     );
     const observer =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(renderer.resize);
+    let intersecting = true;
+    const syncActivity = (): void => renderer.setActive(intersecting && !document.hidden);
+    const visibilityObserver =
+      typeof IntersectionObserver === "undefined"
+        ? null
+        : new IntersectionObserver((entries) => {
+            intersecting = entries[0]?.isIntersecting ?? true;
+            syncActivity();
+          });
     options.rendererRef.current = renderer;
     renderer.setFlat(options.view === "qr");
     renderer.setZoom(options.zoomRef.current);
     renderer.resize();
     observer?.observe(canvas);
+    visibilityObserver?.observe(canvas);
+    document.addEventListener("visibilitychange", syncActivity);
+    syncActivity();
     return () => {
       observer?.disconnect();
+      visibilityObserver?.disconnect();
+      document.removeEventListener("visibilitychange", syncActivity);
       renderer.dispose();
       if (options.rendererRef.current === renderer) options.rendererRef.current = null;
     };
@@ -207,6 +222,7 @@ export function EveryQRCode({
   const [error, setError] = useState<Error | null>(null);
   const [prepared, setPrepared] = useState<PreparedSeed | null>(null);
   const [view, setView] = useState<EveryQRCodeView>(initialView);
+  const [canonicalVisible, setCanonicalVisible] = useState(initialView === "qr");
   const { handleKeyDown, zoom, zoomRef } = useSeedZoom({
     initialZoom,
     model,
@@ -263,6 +279,20 @@ export function EveryQRCode({
 
   useEffect(() => rendererRef.current?.setFlat(view === "qr"), [view]);
 
+  useEffect(() => {
+    if (view !== "qr") {
+      setCanonicalVisible(false);
+      return;
+    }
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    if (reducedMotion) {
+      setCanonicalVisible(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setCanonicalVisible(true), 900);
+    return () => window.clearTimeout(timer);
+  }, [view]);
+
   const toggle = useCallback(() => {
     if (!interactive || error) return;
     const next = nextEveryQRCodeView(view);
@@ -271,6 +301,7 @@ export function EveryQRCode({
   }, [error, interactive, onViewChange, view]);
 
   const fallback = error && prepared ? prepared.qr : null;
+  const canonical = fallback ?? (canonicalVisible ? prepared?.qr : null);
 
   return (
     <button
@@ -285,6 +316,7 @@ export function EveryQRCode({
             : `Restore the ${model}`
       }
       className={className}
+      data-every-qrcode-canonical={canonical ? "qr" : undefined}
       data-every-qrcode-fallback={fallback ? "qr" : undefined}
       data-every-qrcode-model={model}
       data-every-qrcode-view={view}
@@ -296,20 +328,20 @@ export function EveryQRCode({
     >
       <canvas
         data-every-qrcode-canvas={model}
-        hidden={Boolean(fallback)}
+        hidden={Boolean(canonical)}
         key={model}
         ref={canvasRef}
         style={CANVAS_STYLE}
       />
-      {fallback ? (
+      {canonical ? (
         <svg
           aria-hidden="true"
           shapeRendering="crispEdges"
           style={FALLBACK_STYLE}
-          viewBox={`0 0 ${fallback.size} ${fallback.size}`}
+          viewBox={`0 0 ${canonical.size} ${canonical.size}`}
         >
-          <rect fill="#fff" height={fallback.size} width={fallback.size} />
-          <path d={fallback.path} fill="#111" />
+          <rect fill="#fff" height={canonical.size} width={canonical.size} />
+          <path d={canonical.path} fill="#111" />
         </svg>
       ) : null}
       {error && !fallback ? <span style={ERROR_STYLE}>{error.message}</span> : null}
