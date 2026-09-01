@@ -361,7 +361,7 @@ footer {
   letter-spacing: -0.06em;
 }
 .console-heading > p:last-child,
-.handoff > p {
+.handoff-copy > p {
   margin: 0;
   color: var(--muted);
   line-height: 1.7;
@@ -450,6 +450,55 @@ footer {
   gap: 80px;
   padding: 100px 0;
   border-top: 1px solid var(--line);
+}
+.handoff-copy {
+  align-self: center;
+}
+.handoff-copy > p {
+  margin-top: 28px;
+}
+.handoff-copy small {
+  display: block;
+  margin-top: 24px;
+  color: var(--cyan-bright);
+  line-height: 1.6;
+}
+.ar-viewer-shell {
+  min-width: 0;
+}
+.ar-viewer-shell model-viewer {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(24, 185, 230, 0.13), rgba(5, 11, 17, 0.2) 58%);
+  border: 1px solid var(--line);
+}
+.ar-button {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  min-height: 44px;
+  padding: 0 18px;
+  color: #061017;
+  background: var(--lime);
+  border: 0;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
+}
+.ar-button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+.ar-caption {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.5;
 }
 footer {
   display: flex;

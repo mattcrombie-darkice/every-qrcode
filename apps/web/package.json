@@ -11,6 +11,7 @@
   "dependencies": {
     "@every-qrcode/core": "workspace:*",
     "@every-qrcode/react": "workspace:*",
+    "@google/model-viewer": "^4.3.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "react": "19.2.8",

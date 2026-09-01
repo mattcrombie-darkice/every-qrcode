@@ -1,5 +1,5 @@
 import { EveryQRCode, type EveryQRCodeView } from "@every-qrcode/react";
-import { useState } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
 
 const PROFILE_URL = "https://crew.darkice.au/matt-crombie";
 
@@ -58,6 +58,82 @@ const FACES: readonly Face[] = [
 ];
 
 const DEFAULT_FACE = FACES[0]!;
+
+const AR_MODEL_PROPS: Record<string, string> = {
+  alt: "Dark Ice Systems Cube with cyan, lime and ice faces surrounded by a live signal orbit",
+  ar: "",
+  "ar-modes": "webxr scene-viewer quick-look",
+  "auto-rotate": "",
+  "camera-controls": "",
+  "camera-orbit": "35deg 66deg 6.2m",
+  "ios-src": "/systems-cube/models/dark-ice-systems-cube.usdz",
+  "shadow-intensity": "1.2",
+  src: "/systems-cube/models/dark-ice-systems-cube.glb",
+};
+
+function SystemsCubeAR(): React.JSX.Element {
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "unavailable">("idle");
+
+  useEffect(() => {
+    let active = true;
+    let started = false;
+    const loadViewer = (): void => {
+      if (started) return;
+      started = true;
+      setState("loading");
+      void import("@google/model-viewer")
+        .then(() => active && setState("ready"))
+        .catch(() => active && setState("unavailable"));
+    };
+    const element = shellRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      loadViewer();
+      return () => {
+        active = false;
+      };
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadViewer();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "300px" },
+    );
+    observer.observe(element);
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
+  }, []);
+
+  return (
+    <div className="ar-viewer-shell" ref={shellRef}>
+      <div className="stage-chrome">
+        <span>AR ASSET 01</span>
+        <span>{state === "ready" ? "GLB · USDZ · READY" : "GLB · USDZ"}</span>
+      </div>
+      {createElement(
+        "model-viewer",
+        AR_MODEL_PROPS,
+        <button className="ar-button" slot="ar-button" type="button">
+          Place Systems Cube
+        </button>,
+      )}
+      {state === "unavailable" ? (
+        <p className="ar-caption">
+          Interactive viewer unavailable. <a href={AR_MODEL_PROPS["src"]}>Download the GLB</a>.
+        </p>
+      ) : (
+        <p className="ar-caption">
+          A separate platform handoff for WebXR, Scene Viewer and Apple Quick Look.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function App(): React.JSX.Element {
   const [activeFace, setActiveFace] = useState(DEFAULT_FACE);
@@ -201,15 +277,19 @@ export function App(): React.JSX.Element {
       </section>
 
       <section className="handoff" id="ar-handoff" aria-labelledby="handoff-title">
-        <div>
+        <div className="handoff-copy">
           <p className="kicker">PHYSICAL → DIGITAL</p>
           <h2 id="handoff-title">The QR is the doorway, not the destination.</h2>
+          <p>
+            On paper it remains a conventional, high-reliability code. On screen it becomes a
+            deterministic 3D signature, then resolves back to the exact code when someone is ready
+            to connect.
+          </p>
+          <small>
+            Use touch to inspect. Compatible iPhone and Android devices can place it in AR.
+          </small>
         </div>
-        <p>
-          On paper it remains a conventional, high-reliability code. On screen it becomes a
-          deterministic 3D signature, then resolves back to the exact code when someone is ready to
-          connect.
-        </p>
+        <SystemsCubeAR />
       </section>
 
       <footer>
